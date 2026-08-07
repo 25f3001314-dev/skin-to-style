@@ -144,13 +144,17 @@ export async function POST(request: Request) {
       }
 
       const pollData = await pollRes.json();
+      console.log("🔍 YouCam VTO Poll Response:", JSON.stringify(pollData, null, 2));
+
       const status = pollData?.data?.task_status ?? pollData?.status;
 
       if (status === "success") {
         resultUrl =
+          pollData?.data?.results?.url ??        // 👈 नया सही रास्ता (जो अभी लॉग में मिला है)
           pollData?.data?.result_image_url ??
           pollData?.result_image_url ??
           pollData?.image_url ??
+          pollData?.data?.output?.[0]?.url ??
           null;
         break;
       }
