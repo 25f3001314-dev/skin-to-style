@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply min-h-screen bg-surf bg-halo text-ink antialiased;
+}
+
+.card {
+  @apply rounded-2xl border border-teal-100/60 bg-white/90 p-5 shadow-glow backdrop-blur;
+}
+
+.soft-grid {
+  background-image:
+    linear-gradient(to right, rgba(15, 118, 110, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 118, 110, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
