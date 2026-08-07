@@ -6,6 +6,7 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 import { SkinResultCard } from "@/components/SkinResultCard";
 import { StepIndicator } from "@/components/StepIndicator";
 import { TryOnViewer } from "@/components/TryOnViewer";
+import { LoadingProgress } from "@/components/LoadingProgress"; // ✅ Loading component import kiya
 import { getRecommendedPalette } from "@/lib/ruleEngine";
 import type { SkinAnalysisResponse, VtoResponse } from "@/lib/types";
 
@@ -27,7 +28,6 @@ export default function HomePage() {
     return getRecommendedPalette(analysis.profile);
   }, [analysis]);
 
- 
   async function analyzeSkin() {
     if (!userPhoto) {
       setNotice("Please upload a user photo first.");
@@ -45,6 +45,18 @@ export default function HomePage() {
         method: "POST",
         body
       });
+
+      // ✅ FIX: Agar Vercel file ko block kar de (413 Too Large)
+      if (startResponse.status === 413) {
+        throw new Error("Image file is too large. Please upload an image under 4MB.");
+      }
+
+      // ✅ FIX: Check if response is valid JSON before parsing
+      const contentType = startResponse.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response.");
+        throw new Error("Server error: Something went wrong while uploading. File might be too large.");
+      }
 
       const startPayload = await startResponse.json();
 
@@ -120,6 +132,16 @@ export default function HomePage() {
         body
       });
 
+      // ✅ FIX: VTO Vercel size limit handling
+      if (response.status === 413) {
+        throw new Error("Images are too large. Please upload smaller files under 4MB.");
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server error: Something went wrong during VTO.");
+      }
+
       if (!response.ok) {
         throw new Error("Try-on request failed.");
       }
@@ -130,9 +152,13 @@ export default function HomePage() {
       if (payload.source === "mock") {
         setNotice("Demo Mode: Operating on verified fallback dataset to ensure uninterrupted testing.");
       }
-    } catch {
+    } catch (error) {
       setTryOnResult("https://placehold.co/900x1200/png?text=MirrorFit+Fallback+Preview");
-      setNotice("VTO service unreachable, showing cached mock preview.");
+      setNotice(
+        error instanceof Error 
+          ? error.message 
+          : "VTO service unreachable, showing cached mock preview."
+      );
     } finally {
       setTryOnLoading(false);
     }
@@ -173,14 +199,20 @@ export default function HomePage() {
                   flow into our fixed rule table for styling recommendations.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={analyzeSkin}
-                disabled={analyzing}
-                className="mt-5 rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60"
-              >
-                {analyzing ? "Analyzing..." : "Run Skin Analysis"}
-              </button>
+              
+              {/* ✅ Loading Component yahan add kiya hai */}
+              {analyzing ? (
+                <LoadingProgress loading={analyzing} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={analyzeSkin}
+                  disabled={analyzing}
+                  className="mt-5 rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60"
+                >
+                  Run Skin Analysis
+                </button>
+              )}
             </div>
           </div>
         ) : null}
