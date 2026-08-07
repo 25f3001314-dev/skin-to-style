@@ -1,5 +1,5 @@
 "use client";
-
+import { compressImage } from "@/lib/imageCompress";
 import { ChangeEvent, useMemo } from "react";
 
 type PhotoUploadProps = {
@@ -16,9 +16,18 @@ export function PhotoUpload({ file, onFileSelect, label }: PhotoUploadProps) {
     return URL.createObjectURL(file);
   }, [file]);
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null;
-    onFileSelect(nextFile);
+  async function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const rawFile = event.target.files?.[0] ?? null;
+    if (!rawFile) {
+      onFileSelect(null);
+      return;
+    }
+    try {
+      const compressed = await compressImage(rawFile);
+      onFileSelect(compressed);
+    } catch {
+      onFileSelect(rawFile);
+    }
   }
 
   return (

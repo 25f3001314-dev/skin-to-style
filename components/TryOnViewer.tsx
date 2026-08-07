@@ -1,5 +1,5 @@
 "use client";
-
+import { compressImage } from "@/lib/imageCompress";
 import { useState } from "react";
 
 type TryOnViewerProps = {
@@ -8,7 +8,7 @@ type TryOnViewerProps = {
   onTryOn: (input: { garmentFile: File | null; garmentUrl: string }) => Promise<void>;
 };
 
-// आपकी पसंद के सभी नए ऑप्शंस और रंग यहाँ जोड़ दिए गए हैं
+// आपकी पसंद के सभी नए ऑप्शंस और रंग यहाँ जोड़ दिए गए हैं
 const presetGarments = [
   { label: "Deep Teal Blazer", url: "https://images.unsplash.com/photo-1592878849122-d09fae1ee79c?auto=format&fit=crop&w=800&q=80" },
   { label: "Navy Knit", url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80" },
@@ -25,6 +25,7 @@ export function TryOnViewer({ resultUrl, loading, onTryOn }: TryOnViewerProps) {
   const [garmentFile, setGarmentFile] = useState<File | null>(null);
   const [garmentUrl, setGarmentUrl] = useState<string>(presetGarments[0].url);
   const [previewLocalUrl, setPreviewLocalUrl] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState<boolean>(false);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -57,23 +58,39 @@ export function TryOnViewer({ resultUrl, loading, onTryOn }: TryOnViewerProps) {
         <input
           type="file"
           accept="image/*"
-          onChange={(event) => {
+          onChange={async (event) => {
             const file = event.target.files?.[0] ?? null;
-            setGarmentFile(file);
-            if (file) {
-              setGarmentUrl("");
-              // लोकल फाइल का प्रीव्यू दिखाने के लिए URL बनाएँ ताकि एरर न आए
-              setPreviewLocalUrl(URL.createObjectURL(file));
-            } else {
+            if (!file) {
+              setGarmentFile(null);
               setPreviewLocalUrl(null);
+              return;
+            }
+
+            setCompressing(true);
+            try {
+              // Vercel के 4MB body-size limit से बचने के लिए upload से पहले compress करना जरूरी है
+              const compressed = await compressImage(file);
+              setGarmentFile(compressed);
+              setGarmentUrl("");
+              setPreviewLocalUrl(URL.createObjectURL(compressed));
+            } catch {
+              // अगर compression fail हो जाए तो भी original file के साथ आगे बढ़ो
+              setGarmentFile(file);
+              setGarmentUrl("");
+              setPreviewLocalUrl(URL.createObjectURL(file));
+            } finally {
+              setCompressing(false);
             }
           }}
           className="mt-2 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-600 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
         />
+        {compressing ? (
+          <p className="mt-1 text-xs text-teal-700">Compressing image...</p>
+        ) : null}
 
         <button
           type="button"
-          disabled={loading}
+          disabled={loading || compressing}
           onClick={() => onTryOn({ garmentFile, garmentUrl })}
           className="mt-5 w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60 shadow-md"
         >
